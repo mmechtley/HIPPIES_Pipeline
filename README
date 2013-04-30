@@ -1,0 +1,184 @@
+###### HIPPIES Data Reduction Pipeline ######
+By Matt Mechtley
+Version 1.1, 2013.04.30
+
+This project is designed to perform data reduction and photometry on Hubble 
+Space Telescope Wide Field Camera 3 Parallel observations associated with the 
+HIPPIES program (Hubble Infrared Pure Parallel Imaging Extragalactic Survey,
+PI: Haojing Yan, HST program IDs 11702 and 12286). In addition, it's also chill 
+working with data from the other Parallel programs with similar science designs,
+such as BoRG (Brightest of Reionizing Galaxies, PI: Michele Trenti, HST program 
+IDs 11700 and 12572) and the COS GTO coordinated parallel programs (IDs 11519, 
+11520, 11524, 11528, 11530, 11533, 11534, 11541, 12024, and 12025).
+
+
+The data reduction and photometry pipeline software consists of four files:
+01_hippies_process_new.py, 02_hippies_drizzle_all.py,
+03_hippies_make_rms.py, and 04_hippies_phot.py
+
+The software also uses:
+astroRMS.py         a Python implementation of the MEDRMS IRAF tasks
+SextractorTools.py  a module for reading Sextractor output files
+CatalogTools.py     a module for calculating catalog offsets.
+There are several configuration files, which are described in the Configuration 
+Files section.
+
+The following python modules must be installed by the user. They are essential 
+to scientific python for HST users, and are included in the Scisoft OSX package 
+for Mac OSX users:
+numpy
+scipy
+pymc
+pyfits
+multidrizzle
+
+###### Directory Structure and Usage ######
+
+The photometry pipeline should be run from the root HIPPIES directory, which
+should begin with three directories:
+
+> ls
+pipeline/        sextractor/      unprocessed/
+
+The photometry pipeline expects configuration files to be in the sextractor/ 
+directory (see Photometry Configuration Files section). Pipeline Python files 
+should should live inside the pipeline/ directory.
+
+To begin, dump all *_flt.fits into the unprocessed/ directory. From the HIPPIES
+root directory, run:
+
+> python ./pipeline/01_hippies_process_new.py
+
+This will calculate which files belong to the same fields, and create a
+directory structure where each field is named based on its RA/Dec. They are
+named like: parXXXX+XXXX_W. The 'W' stands for WFC3. This version of the
+pipeline only works on WFC3 files.
+
+Next, all the individual filters for a single field need to be drizzled to a
+common pixel grid. To do so, run:
+
+> python ./pipeline/02_hippies_drizzle_all.py
+
+For each field, this step first drizzles each individual exposure to the output
+grid. It then runs sextractor on each exposure, and uses an MCMC sampler to
+calculate pixel shifts between the catalogs. These are then saved into a
+Multidrizzle shift file, and Multidrizzle is re-run to combine the individual
+exposures using the calculated shifts. This step takes a long time, so go grab
+some lunch.
+
+Drizzled images contain correlated noise, so the weight images produced by
+Multidrizzle are not in general scaled properly for the data. To produce RMS
+maps that better estimate the background noise in each pixel, run:
+
+> python ./pipeline 03_hippies_make_rms.py
+
+This step is accomplished by masking out the objects in an image, measuring the
+autocorrelation of several sections of blank sky (10 256x256 regions, by
+default), and using the average autocorrelation to derive the proper scaling
+between the weight map and the true inverse variance of the background pixels.
+I then scale the weight map by this amount, and take one over its square root to
+derive an RMS map. Pixels with zero weight have their RMS value set to 10000.
+The photometry script automatically sets the sextractor WEIGHT_THRESH value to
+this. This step also produces symlinks for the individual *_drz_sci.fits images
+in the directory for each field.
+
+Finally, run sextractor on all the individual fields to produce master
+photometry catalogs by running:
+
+> python ./pipeline/04_hippies_phot.py
+
+This will run sextractor in dual-image mode with F160W used as the detection
+filter (or F125W if F160W cannot be found). The detection filter search order
+can be changed by editing the _ref_filters variable near the top of
+04_hippies_phot.py. Once all filters have been sextracted, the individual
+catalogs are combined into a single master catalog called
+parXXXX+XXXX_W_master.cat. Any columns that varied between catalogs will be
+appended with the filter name. So the final catalog has column names like:
+
+NUMBER X_IMAGE Y_IMAGE MAG_AUTO_F105W MAGERR_AUTO_F105W MAG_AUTO_F125W ...
+
+Some steps of the pipeline have command line options available. To view these,
+type "help" on the command line after the script name, e.g.:
+
+> python ./pipeline/01_hippies_process_new.py help
+
+In addition, each script has control variables defined near the top of the file,
+prepended with an underscore, e.g., _driz_params_WFC3. In general you should
+not need to change these, but they're there if you feel like messing with them.
+
+###### Configuration Files ######
+
+The pipeline uses four unique configuration files. These all live
+inside the sextractor/ directory. In addition, it uses gauss_2.0_5x5.conv and 
+default.nnw, which are shared with the alignment step in the drizzling 
+process.
+
+photometry.conf       SExtractor configuration file for performing 
+                      photometry. Any parameters that are adjusted in this 
+                      file will apply to ALL SExtractor photometry runs. The 
+                      following parameters will be IGNORED, as the pipeline 
+                      specifies them on the command line on a per-file basis:
+                      CATALOG_NAME, WEIGHT_IMAGE, WEIGHT_THRESH, MAG_ZEROPOINT,
+                      GAIN
+photometry.param      SExtractor output parameter file. Additional output 
+                      parameters can be added, and will apply to all 
+                      SExtractor catalogs.
+                      
+getcompact.conf       SExtractor configuration file for finding compact objects 
+                      during the drizzle alignment step. Primary differences are
+                      a higher detection significance (5 sigma) and minimum area
+                      (16 pixels)
+getcompact.param      SExtractor output parameter file for drizzle alignment 
+                      step. Don't remove any columns from this file, as they 
+                      are needed for alignment.
+
+###### Re-Processing Fields ######
+
+Since the pipeline tests which steps have been completed for each field, it 
+can be made to re-process only certain fields, or only certain steps. The 
+following are several examples of how to do this.
+
+EXAMPLE: Re-running RMS map creation and photometry on a single field
+-------------------------------------------
+
+Begin with a fully processed field:
+
+> ls par0005+1607_W/
+F105W/                                 par0005+1607_W_F125W_drz_weight.fits@
+F125W/                                 par0005+1607_W_F160W_drz_rms.fits
+F160W/                                 par0005+1607_W_F160W_drz_sci.cat
+F600LP/                                par0005+1607_W_F160W_drz_sci.fits@
+par0005+1607_W_F105W_drz_rms.fits      par0005+1607_W_F160W_drz_weight.fits@
+par0005+1607_W_F105W_drz_sci.cat       par0005+1607_W_F600LP_drz_rms.fits
+par0005+1607_W_F105W_drz_sci.fits@     par0005+1607_W_F600LP_drz_sci.cat
+par0005+1607_W_F105W_drz_weight.fits@  par0005+1607_W_F600LP_drz_sci.fits@
+par0005+1607_W_F125W_drz_rms.fits      par0005+1607_W_F600LP_drz_weight.fits@
+par0005+1607_W_F125W_drz_sci.cat       par0005+1607_W_master.cat
+par0005+1607_W_F125W_drz_sci.fits@     rms_calc.reg
+
+Remove all photometry files:
+
+> rm -f par0005+1607_W/*.fits par0005+1607_W/rms_calc.reg \
+par0005+1607_W/*.cat
+
+Now we are back to where we began after drizzling:
+
+> ls par0005+1607_W/
+F105W/   F125W/    F160W/    F600LP/
+
+Re-run steps 03 and 04 of the pipeline:
+
+> python ./pipeline/03_hippies_make_rms.py
+> python ./pipeline/04_hippies_phot.py
+
+
+EXAMPLE: Re-running photometry For all fields (e.g. with new parameters)
+------------------------------------------------------------------------
+
+Begin with fully processed fields. Remove only sextractor catalogs:
+
+> rm -rf par*/*.cat
+
+Re-run step 04 of the pipeline.
+
+> python ./pipeline/04_hippies_phot.py
