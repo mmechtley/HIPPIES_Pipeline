@@ -123,6 +123,17 @@ if __name__ == '__main__':
     # Put command-line arguments into a nice little dictionary
     args = parse_cl_args(sys.argv)
 
+    if (os.path.exists('sextractor') and os.path.exists('pipeline') and
+            not os.path.exists('unprocessed')):
+        message("unprocessed/ directory does not exist. I'll attempt to" +
+                "create it for you. Dump all your groovy *_flt.fits files " +
+                "inside, then re-run this script.", msgtype='ERROR')
+        try:
+            os.mkdir('unprocessed')
+        except OSError:
+            pass
+        exit(1)
+
     # First, make sure we're running this from the right place
     if 'unprocessed' not in os.listdir('.') or args['help']:
         print(__doc__)
