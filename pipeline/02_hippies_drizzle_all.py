@@ -19,29 +19,13 @@ import subprocess
 import multidrizzle
 import pyfits
 from numpy import seterr
+from HippiesConfig import *
 import CatalogTools as CatTools
 import SextractorTools as SexTools
-
-_field_prefix = 'par'
-
-# Multidrizzle parameters for final image
-_driz_params_WFC3 = {'driz_sep_scale': 0.1, 'driz_sep_rot': 0.0,
-                     'driz_final_scale': 0.1, 'driz_final_rot': 0.0,
-                     'driz_final_pixfrac': 0.8, 'driz_final_wht_type': 'EXP',
-                     'driz_final_kernel': 'square', 'build': False}
 
 # Additional Multidrizzle parameters for single-image drizzle step
 _driz_params_single = {'static': False, 'skysub': False, 'median': False,
                        'blot': False, 'driz_cr': False, 'driz_combine': False}
-
-# list of reference filters, in order of preference. Every field should have
-# one of these filters, and deepest filters should be first
-_ref_filters = ['F105W', 'F098M']
-
-# Can replace with /usr/local/bin/sex etc if you want to use a specific
-# sextractor binary
-_sex_command = 'sex'
-_sex_compact_conf = 'sextractor/getcompact.conf'
 
 
 def drizzle_field(fieldPath, sys_args=None):
@@ -126,7 +110,7 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
 
         # Run first drizzle pass, doing only driz_separate to get single_sci
         # files
-        driz_params_single = dict(_driz_params_WFC3.items() +
+        driz_params_single = dict(DRIZ_PARAMS_WFC3.items() +
                                   _driz_params_single.items())
         ## For slave filters (reference file is a drizzled file)
         if os.path.isfile(ref_file):
@@ -148,9 +132,9 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
                          ref_file.replace('sci', 'weight'))
 
         ## Calculate delta shifts for all the single sci files
-        ## TODO: Build tree of image + refimage, by distance. Calculate
-        ## TODO: shift from one to next, set absolute shift as sum of relative
-        ## TODO: shifts of chain
+        ## TODO: Build tree of image + refimage, by distance. Calculate shift
+        # from one to next, set absolute shift as sum of relative shifts of
+        # chain
         shifts = [calc_shift(ref_file, singleSci) for singleSci in singleScis]
 
         ## Write out shift file and delete all other files
@@ -167,7 +151,7 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
                                        output=out_file,
                                        refimage=ref_file,
                                        shiftfile='shifts.txt',
-                                       **_driz_params_WFC3)
+                                       **DRIZ_PARAMS_WFC3)
         md.build()
         md.run()
 
@@ -186,7 +170,7 @@ def calc_shift(refFile, otherFile):
     """
     refCatFile = refFile.replace('.fits', '.cat')
     otherCatFile = otherFile.replace('.fits', '.cat')
-    sex_conf = os.path.join('../../', '..', _sex_compact_conf)
+    sex_conf = os.path.join('../../', '..', SEX_COMPACT_CONF)
 
     ## Find weight files
     refWeight = refFile.replace('sci', 'weight')
@@ -202,13 +186,13 @@ def calc_shift(refFile, otherFile):
             and os.path.exists(sex_conf))
     ## Run sextractor for reference file
     if not os.path.exists(refCatFile):
-        cmd = [_sex_command, refFile, '-c', sex_conf, '-weight_image',
+        cmd = [SEX_COMMAND, refFile, '-c', sex_conf, '-weight_image',
                refWeight, '-catalog_name', refCatFile]
         subprocess.call(cmd)
 
     ## Run sextractor for file to shift
     if not os.path.exists(otherCatFile):
-        cmd = [_sex_command, otherFile, '-c', sex_conf, '-weight_image',
+        cmd = [SEX_COMMAND, otherFile, '-c', sex_conf, '-weight_image',
                otherWeight, '-catalog_name', otherCatFile]
         subprocess.call(cmd)
 
@@ -284,7 +268,7 @@ def ref_filter(filtList):
     Returns the name of the reference filter, given a list of filters
     (e.g. from filter_list, etc).
     """
-    for filt in _ref_filters:
+    for filt in DRIZZLE_REF_FILTERS:
         if filt in filtList:
             return filt
     return ''
@@ -352,9 +336,6 @@ def instrument_info(fileName):
     return info
 
 
-def message(msg, msgtype='INFO'):
-    print('\n[{}] {}\n'.format(msgtype, msg))
-
 if __name__ == '__main__':
     seterr(all='warn')
     ## Be helpful and go up a level if we run this from /unprocessed/
@@ -363,11 +344,11 @@ if __name__ == '__main__':
 
     ## First, make sure there are some directories to run on.
     fields = [field for field in os.listdir(os.getcwd()) if
-              field.startswith(_field_prefix)]
+              field.startswith(FIELD_PREFIX)]
 
     args = parse_cl_args(sys.argv)
 
-    sextractorConf = os.path.join(os.getcwd(), _sex_compact_conf)
+    sextractorConf = os.path.join(os.getcwd(), SEX_COMPACT_CONF)
     if len(fields) < 1 or args['help'] or not os.path.exists(sextractorConf):
         print(__doc__)
         exit(0)

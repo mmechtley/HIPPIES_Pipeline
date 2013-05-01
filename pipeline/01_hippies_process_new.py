@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 """
 Processes new observations for the HIPPIES HST program.
 Please run the script from the hippies data root directory, which should
@@ -18,13 +16,7 @@ import pyfits            # for reading fits
 import glob                # for finding all flt files
 import os                # for creating dirs, getting working dir, etc
 import shutil
-
-_field_prefix = 'par'
-
-# In degrees, tolerance for connecting fields. Right now it's about half the
-# WFC3IR field of view. Don't make this too big, or the drizzling process will
-# have trouble matching catalogs.
-_connect_distance = 90. / 3600.
+from HippiesConfig import *
 
 
 def parse_cl_args(argv):
@@ -110,13 +102,10 @@ def fields_are_same(coordList1, coordList2):
     """
     permutations = [(c1, c2) for c1 in coordList1 for c2 in coordList2]
     for c1, c2 in permutations:    # c1, c2 are 2-tuple
-        if (c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 < _connect_distance ** 2:
+        sqrdist = (c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2
+        if sqrdist < FIELD_CONNECT_DISTANCE ** 2:
             return True
     return False
-
-
-def message(msg, msgtype='INFO'):
-    print('[{}] {}'.format(msgtype, msg))
 
 
 if __name__ == '__main__':
@@ -145,7 +134,7 @@ if __name__ == '__main__':
     filesToProcess = glob.glob('*_flt.fits')
 
     # Get a list of all files, to find adjacency (match par*)
-    proc_pattern = '../{}*/F*/do_not_touch/*_flt.fits'.format(_field_prefix)
+    proc_pattern = '../{}*/F*/do_not_touch/*_flt.fits'.format(FIELD_PREFIX)
     allFiles = filesToProcess + glob.glob(proc_pattern)
 
     # A dictionary of [short field name] : [(ra,dec)]

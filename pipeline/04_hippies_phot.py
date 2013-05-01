@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Runs sextractor-based photometry on HIPPIES data.
 Run from the directory where the par*_W directories live. Also needs a
@@ -20,39 +19,10 @@ import glob
 import sys
 import pyfits
 import SextractorTools as SexTools
+from HippiesConfig import *
 from StringIO import StringIO
 from numpy import savetxt
 from numpy.lib.recfunctions import append_fields
-
-_field_prefix = 'par'
-# PHOTOMETRY reference filters. ie detection image for dual-image sextractor
-# Reference filters are checked in order, so if F160W is not found, F125W will
-# be tried, and so on.
-_ref_filters = ['F160W', 'F125W']
-
-# Filter Zeropoints
-_filter_zeropoints = {'F300X': 24.9565,
-                      'F600LP': 25.8746,
-                      'F850LP': 23.8338,
-                      'F606W': 26.0691,
-                      'F098M': 25.6674,
-                      'F105W': 26.2687,
-                      'F110W': 26.8223,
-                      'F125W': 26.2303,
-                      'F160W': 25.9463}
-
-_sex_command = 'sex'
-_sex_conf_file = 'sextractor/photometry.conf'
-
-_rms_bad_px_val = 10000
-
-# Sometimes columns can be duplicated in the master catalogs due to floating
-# point roundoff errors. They can be manually specified here to force them
-# not to be duplicated in the final catalogs
-_ignore_duplicate_columns = ['ALPHA_J2000', 'DELTA_J2000']
-
-## Files to delete if clean arg is given
-_clean_files = [_field_prefix+'*/*.cat']
 
 
 def parse_cl_args(argv):
@@ -67,16 +37,13 @@ def parse_cl_args(argv):
     args = dict([(arg, arg in argv) for arg in _known_args])
     return args
 
-def message(msg, msgtype='INFO'):
-    print('\n[{}] {}\n'.format(msgtype, msg))
-
 
 def sextractField(field):
     os.chdir(field)
     sciFiles = glob.glob(field+'*drz_sci.fits')
     # Find which is reference filter. If none found, skip this field
     refFile = ''
-    for refFilt in _ref_filters:
+    for refFilt in PHOT_DETECT_FILTERS:
         for sciFile in sciFiles:
             if refFilt in sciFile:
                 refFile = sciFile
@@ -100,13 +67,13 @@ def sextractField(field):
 def sextractFile(sciFile, detectFile=None):
     rmsFiles = sciFile.replace('_sci', '_rms')
     sciFiles = sciFile
-    weight_thresh = str(_rms_bad_px_val)
+    weight_thresh = str(RMS_BAD_PX_VALUE)
 
     ## comma-separate detection and photometry images if dual-image mode
     if detectFile is not None:
         rmsFiles = detectFile.replace('_sci', '_rms') + ',' + rmsFiles
         sciFiles = detectFile + ',' + sciFile
-        weight_thresh = weight_thresh + ',' + str(_rms_bad_px_val)
+        weight_thresh = weight_thresh + ',' + str(RMS_BAD_PX_VALUE)
 
     catFile = sciFile.replace('.fits', '.cat')
     if os.path.exists(catFile):
@@ -120,9 +87,9 @@ def sextractFile(sciFile, detectFile=None):
     except KeyError:
         gain = pyfits.getval(sciFile, 'ADCGAIN') * pyfits.getval(sciFile,
                                                                  'EXPTIME')
-    magZP = _filter_zeropoints[filt]
+    magZP = FILTER_ZEROPOINTS[filt]
 
-    cmd = [_sex_command, sciFiles, '-c', '../'+_sex_conf_file,
+    cmd = [SEX_COMMAND, sciFiles, '-c', '../'+SEX_PHOTOMETRY_CONF,
            '-weight_image', rmsFiles, '-weight_thresh', weight_thresh,
            '-catalog_name', catFile, '-mag_zeropoint', str(magZP),
            '-gain', str(gain)]
@@ -149,7 +116,7 @@ def combineSextractorCatalogs(field):
             return
         for col in newCat.dtype.names:
             if ((firstCat[col] != newCat[col]).any() and
-                        col not in _ignore_duplicate_columns):
+                        col not in IGNORE_DUPLICATE_COLUMNS):
                 filtCols += [col]
                 firstCat = append_fields(firstCat, names=col+'_'+filt,
                                          data=newCat[col], asrecarray=True)
@@ -177,16 +144,15 @@ if __name__ == '__main__':
         exit(0)
 
     if args['clean']:
-        cleanFiles = [item for pattern in _clean_files for item
-                      in glob.glob(pattern)]
-        message('Cleaning old files: ' + ', '.join(_clean_files))
+        cleanFiles = glob.glob(FIELD_PREFIX+'*W/*.cat')
+        message('Cleaning old catalog files.')
         for cleanFile in cleanFiles:
             try:
                 os.remove(cleanFile)
             except OSError:
                 pass
 
-    fields = glob.glob(_field_prefix+'*W')
+    fields = glob.glob(FIELD_PREFIX+'*W')
     ## Run sextractor on everything
     for field in fields:
         message('Processing field: {}'.format(field))

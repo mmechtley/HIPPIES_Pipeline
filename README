@@ -102,13 +102,14 @@ type "help" on the command line after the script name, e.g.:
 
 > python ./pipeline/01_hippies_process_new.py help
 
-In addition, each script has control variables defined near the top of the file,
-prepended with an underscore, e.g., _driz_params_WFC3. In general you should
-not need to change these, but they're there if you feel like messing with them.
-
 ###### Configuration Files ######
 
-The pipeline uses four unique configuration files. These all live
+The file HippiesConfig.py in the pipeline/ directory contains the configuration
+parameters for all pipeline steps. This file defines all user-configurable
+parameters for the pipeline, other than those controlled via the sextractor
+files below.
+
+The pipeline uses four sextractor configuration files. These all live
 inside the sextractor/ directory. In addition, it uses gauss_2.0_5x5.conv and 
 default.nnw, which are shared with the alignment step in the drizzling 
 process.

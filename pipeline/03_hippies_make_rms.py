@@ -16,12 +16,8 @@ import os
 import numpy as np
 import astroRMS
 import pyfits
+from HippiesConfig import *
 from scipy.ndimage import uniform_filter, minimum_filter, maximum_filter
-
-_field_prefix = 'par'
-## Name of the region file for calculating RMS within each field dir
-_region_name = 'rms_calc.reg'
-_rms_bad_px_val = 10000
 
 
 def parse_cl_args(argv):
@@ -128,7 +124,7 @@ def createRMSMap(field, filt, calcSlices):
     # Now transform the weight map into an RMS map using weightToVarScale.
     # Set bad pixels to very large RMS
     rmsData = np.divide(1.0, np.sqrt(weightImage[0].data * weightToVarScale))
-    rmsData[bpMask] = _rms_bad_px_val
+    rmsData[bpMask] = RMS_BAD_PX_VALUE
 
     sciHeader = pyfits.getheader(os.path.join(field, fNames['sci']))
 
@@ -230,7 +226,7 @@ if __name__ == '__main__':
 
     ## We'll find all the fields first
     fields = [field for field in os.listdir(os.getcwd()) if
-              field.startswith(_field_prefix)]
+              field.startswith(FIELD_PREFIX)]
 
     for field in fields:
         # First task is to symlink all drizzled sci and weight files into the
@@ -238,7 +234,7 @@ if __name__ == '__main__':
         filters = linkDrizzledFilters(field)
 
         ## Find optimal regions to calculate RMS scaling from
-        if not os.path.exists(os.path.join(field, _region_name)):
+        if not os.path.exists(os.path.join(field, RMS_REGION_NAME)):
             allNames = [getFileNamesDict(field, filt) for filt in filters]
             weightPaths = [os.path.join(field, fNames['weight']) for fNames in
                            allNames]
@@ -249,12 +245,12 @@ if __name__ == '__main__':
                 args['numrmsboxes'])
 
             ## Save out the RMS calculations region file
-            writeSlicesToRegionFile(os.path.join(field, _region_name),
+            writeSlicesToRegionFile(os.path.join(field, RMS_REGION_NAME),
                                     rmsCalcSlices)
 
         else:
             rmsCalcSlices = readSlicesFromRegionFile(
-                os.path.join(field, _region_name))
+                os.path.join(field, RMS_REGION_NAME))
 
         ## Now we need to derive RMS maps for each filter in each field.
         for filt in filters:
