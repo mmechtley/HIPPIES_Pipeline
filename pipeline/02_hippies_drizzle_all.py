@@ -170,7 +170,7 @@ def calc_shift(refFile, otherFile):
     """
     refCatFile = refFile.replace('.fits', '.cat')
     otherCatFile = otherFile.replace('.fits', '.cat')
-    sex_conf = os.path.join('../../', '..', SEX_COMPACT_CONF)
+    sex_conf = os.path.join('..', '..', SEX_COMPACT_CONF)
 
     ## Find weight files
     refWeight = refFile.replace('sci', 'weight')
