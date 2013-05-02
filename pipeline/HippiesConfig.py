@@ -33,6 +33,15 @@ SEX_COMPACT_CONF = 'sextractor/getcompact.conf'
 # Sextractor configuration file used for photometry
 SEX_PHOTOMETRY_CONF = 'sextractor/photometry.conf'
 
+# An MCMC algorithm is used for calculating the relative shifts between
+# individual exposures. maxShift is the estimated maximum shift in x, y, theta.
+# iter and burn control the number of MCMC samples. burn is the number of
+# burn-in samples that will be thrown away. iter is the total number of samples,
+# so the length of the final Markov Chain is iter - burn.
+SHIFT_MCMC_PARAMS = {'maxShift': (10, 10, 0.1),
+                     'iter': 3500,
+                     'burn': 2500}
+
 # Name of the region file for calculating RMS within each field dir
 RMS_REGION_NAME = 'rms_calc.reg'
 

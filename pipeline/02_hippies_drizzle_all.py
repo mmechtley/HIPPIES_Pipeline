@@ -207,9 +207,8 @@ def calc_shift(refFile, otherFile):
     center = (pyfits.getval(otherFile, 'CRPIX1'),
               pyfits.getval(otherFile, 'CRPIX2'))
     offset, offerr = CatTools.findOffsetMCMC(refCat, otherCat,
-                                             maxShift=(10, 10, 0.1),
                                              rotOrigin=center,
-                                             iter=3500, burn=2500)
+                                             **SHIFT_MCMC_PARAMS)
     return offset
 
 
