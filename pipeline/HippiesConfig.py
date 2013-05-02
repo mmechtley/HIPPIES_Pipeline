@@ -9,7 +9,7 @@ FIELD_PREFIX = 'par'
 # In degrees, tolerance for connecting fields. Right now it's 90 arcsec, about
 # half the WFC3IR field of view. Don't make this too big, or the drizzling
 # process will have trouble matching catalogs.
-FIELD_CONNECT_DISTANCE = 90. / 3600.
+FIELD_CONNECT_DISTANCE = 100. / 3600.
 
 # Multidrizzle parameters for final image combination
 DRIZ_PARAMS_WFC3 = {'driz_sep_scale': 0.1, 'driz_sep_rot': 0.0,

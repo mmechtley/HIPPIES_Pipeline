@@ -16,6 +16,7 @@ import pyfits            # for reading fits
 import glob                # for finding all flt files
 import os                # for creating dirs, getting working dir, etc
 import shutil
+from numpy import asarray, sum
 from HippiesConfig import *
 
 
@@ -74,7 +75,8 @@ def find_field_dir(aperRA, aperDec, allFieldsDict):
             foundDir = dirName
     # Something is horribly wrong if we can't find which field this file
     # belongs to
-    assert foundDir != ''
+    assert foundDir != '', 'Unable to find field for RA, Dec {}, {}'.format(
+        aperRA, aperDec)
     return foundDir
 
 
@@ -102,7 +104,7 @@ def fields_are_same(coordList1, coordList2):
     """
     permutations = [(c1, c2) for c1 in coordList1 for c2 in coordList2]
     for c1, c2 in permutations:    # c1, c2 are 2-tuple
-        sqrdist = (c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2
+        sqrdist = sum((asarray(c1) - asarray(c2)) ** 2)
         if sqrdist < FIELD_CONNECT_DISTANCE ** 2:
             return True
     return False
@@ -146,7 +148,7 @@ if __name__ == '__main__':
         aperDec = pyfits.getval(flt_file, 'DEC_APER', ext=1)
 
         fieldName = construct_field_name(instrumentName, aperRA, aperDec)
-        allFields[fieldName] = [(aperRA, aperDec)]
+        allFields[fieldName] = allFields.get(fieldName,[]) + [(aperRA, aperDec)]
 
     message('Calculating field adjacency')
     oldFields = {}
