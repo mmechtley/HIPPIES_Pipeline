@@ -191,7 +191,7 @@ if __name__ == '__main__':
         # Search the field location dictionary to find out which field dir to
         # place this file in
         fieldDir = find_field_dir(aperRA, aperDec, allFields)
-        obsDir = os.path.join('../../', fieldDir)
+        obsDir = os.path.join('../', fieldDir)
         filtDir = os.path.join(obsDir, filt)
 
         # Check to make sure this observation has not been processed
