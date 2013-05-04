@@ -15,10 +15,11 @@ FIELD_CONNECT_DISTANCE = 100. / 3600.
 DRIZ_PARAMS_WFC3 = {'driz_sep_scale': 0.1, 'driz_sep_rot': 0.0,
                     'driz_final_scale': 0.1, 'driz_final_rot': 0.0,
                     'driz_final_pixfrac': 0.8, 'driz_final_wht_type': 'EXP',
-                    'driz_final_kernel': 'square', 'build': False}
+                    'driz_final_kernel': 'square',
+                    'build': False, 'clean': True}
 
-# List of reference filters, in order of preference. Every field should have
-# one of these filters, and deepest IR filters should be first. Filters are
+# List of drizzle reference filters, in order of preference. Every field should
+# have one of these filters, and deepest IR filters should be first. Filters are
 # checked in order, so if F105W is not found, F098M will be tried, and so on.
 DRIZZLE_REF_FILTERS = ['F105W', 'F098M']
 
@@ -34,7 +35,8 @@ SEX_COMPACT_CONF = 'sextractor/getcompact.conf'
 SEX_PHOTOMETRY_CONF = 'sextractor/photometry.conf'
 
 # An MCMC algorithm is used for calculating the relative shifts between
-# individual exposures. maxShift is the estimated maximum shift in x, y, theta.
+# individual exposures. maxShift is the estimated maximum shift in x, y, theta,
+# with x and y in pixels and theta in degrees
 # iter and burn control the number of MCMC samples. burn is the number of
 # burn-in samples that will be thrown away. iter is the total number of samples,
 # so the length of the final Markov Chain is iter - burn.
@@ -53,8 +55,8 @@ RMS_BAD_PX_VALUE = 10000
 # be tried, and so on.
 PHOT_DETECT_FILTERS = ['F160W', 'F125W']
 
-# Filter Photometric zeropoints, in AB magnitudes. From:
-# http://www.stsci.edu/hst/wfc3/phot_zp_lbn
+# Filter Photometric zeropoints, in AB magnitudes.
+# From: http://www.stsci.edu/hst/wfc3/phot_zp_lbn
 FILTER_ZEROPOINTS = {'F300X': 24.9565,
                      'F475X': 26.1579,
                      'F600LP': 25.8746,

@@ -23,9 +23,11 @@ from HippiesConfig import *
 import CatalogTools as CatTools
 import SextractorTools as SexTools
 
-# Additional Multidrizzle parameters for single-image drizzle step
+# Additional Multidrizzle parameters for single-image drizzle step. Do not
+# modify these
 _driz_params_single = {'static': False, 'skysub': False, 'median': False,
-                       'blot': False, 'driz_cr': False, 'driz_combine': False}
+                       'blot': False, 'driz_cr': False, 'driz_combine': False,
+                       'clean': False}
 
 
 def drizzle_field(fieldPath, sys_args=None):
@@ -41,14 +43,13 @@ def drizzle_field(fieldPath, sys_args=None):
     refFilt = ref_filter(filts)
     if refFilt == '':
         message('Field {} '.format(fieldPath) +
-                'has no suitable reference filter (F105W or F098M). Skipping.',
+                'has no suitable reference filter (F105W or F098M).',
                 msgtype='WARN')
         return
 
     # Drizzle the other filters to the same grid
     for filt in filts:
         filtPath = os.path.join(fieldPath, filt)
-        message('Beginning drizzle process for {}'.format(filtPath))
 
         # Clean directory if needed
         if is_processed(filtPath) and sys_args['clean']:
@@ -56,6 +57,8 @@ def drizzle_field(fieldPath, sys_args=None):
 
         # Drizzle if the dir is clean, otherwise just warn that we won't process
         if not is_processed(filtPath):
+            message('Beginning drizzle process for {}'.format(filtPath))
+
             refFile = ''
             if filt != refFilt:
                 refFile = '_'.join([fieldPath, refFilt, 'drz_sci.fits'])
@@ -72,9 +75,8 @@ def drizzle_field(fieldPath, sys_args=None):
 
             drizzle_filt(filtPath, ref_file=refFile, sys_args=sys_args)
         else:
-            message('Filter {} '.format(filtPath) +
-                    'has already been drizzled, skipping it. To re-drizzle, ' +
-                    'run with "clean."', msgtype='WARN')
+            message('Filter {} has already '.format(filtPath) +
+                    'been drizzled. To re-drizzle, run with "clean."')
 
     ## Trim off last line or column to deal with Multidrizzle bug
     trim_files(fieldPath)
@@ -286,11 +288,11 @@ def parse_cl_args(argv):
     return args
 
 
-def is_processed(field):
+def is_processed(filt_path):
     """
     Checks to see if the supplied directory has already been drizzled
     """
-    return len(glob.glob(os.path.join(field, '*_drz_sci.fits'))) > 0
+    return len(glob.glob(os.path.join(filt_path, '*_drz_sci.fits'))) > 0
 
 
 def clean_dir(filtDir, exclude=None):
@@ -320,7 +322,7 @@ def base_filename(filtPath):
     """
     Construct output base filename. Looks like parXXXX_W_FILT
     """
-    pathElems = os.path.abspath(filtPath).split('/')
+    pathElems = os.path.split(os.path.abspath(filtPath))
     return pathElems[-2] + '_' + pathElems[-1]
 
 
@@ -360,11 +362,10 @@ if __name__ == '__main__':
 
     undrizzled = []
     for field in fields:
-        fieldPath = './' + field
-        drizzle_field(fieldPath, args)
+        drizzle_field(field, args)
         ## Sanity check: Make sure all filters were actually drizzled
         for filt in filter_list(field):
-            filtPath = os.path.join(fieldPath, filt)
+            filtPath = os.path.join(field, filt)
             drizName = os.path.join(filtPath,
                                     base_filename(filtPath) + '_drz_sci.fits')
             if not os.path.exists(drizName):

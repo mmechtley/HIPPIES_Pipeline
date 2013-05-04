@@ -179,14 +179,12 @@ if __name__ == '__main__':
             continue
 
         # Find the filter used for the file
-        filt = ''
-        for key in ('FILTER', 'FILTER1', 'FILTER2'):
-            if header.get(key, default='').startswith('F'):
-                filt = header[key]
+        filt = header['FILTER']
+
         # If file had no FILTER keyword whose value starts with F, something is
         # badly amiss
-        if filt == '':
-            message('No filter name found for file {}.'.format(flt_file) +
+        if not filt.startswith('F'):
+            message('Invalid filter name found for file {}.'.format(flt_file) +
                     'Ensure header information is correct', msgtype='WARN')
             continue
 
