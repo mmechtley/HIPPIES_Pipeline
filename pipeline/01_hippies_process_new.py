@@ -16,7 +16,9 @@ import pyfits            # for reading fits
 import glob                # for finding all flt files
 import os                # for creating dirs, getting working dir, etc
 import shutil
-from numpy import asarray, sum
+from itertools import product
+from scipy.spatial.distance import cdist
+from numpy import asarray
 from HippiesConfig import *
 
 
@@ -33,15 +35,14 @@ def parse_cl_args(argv):
     return args
 
 
-def is_processed(filtDir, baseName):
+def is_processed(filt_dir, flt_file):
     """
     Determines if the field has been processed by checking for existing files
-    @param filtDir: Path to the observation. e.g. ../parXXX_W/F105W
-    @param baseName: Base name of the observation. e.g. ib8d0aatq
+    @param filt_dir: Path to the observation. e.g. ../parXXX_W/F105W
+    @param flt_file: Filename to check
     @return: True if the observation has been processed, else False
     """
-    return os.path.isfile('{}/do_not_touch/{}_flt.fits'.format(filtDir,
-                                                               baseName))
+    return os.path.isfile(os.path.join(filt_dir, 'do_not_touch', flt_file))
 
 
 def construct_field_name(instrumentName, aperRA, aperDec):
@@ -75,8 +76,9 @@ def find_field_dir(aperRA, aperDec, allFieldsDict):
             foundDir = dirName
     # Something is horribly wrong if we can't find which field this file
     # belongs to
-    assert foundDir != '', 'Unable to find field for RA, Dec {}, {}'.format(
-        aperRA, aperDec)
+    if foundDir == '':
+        raise RuntimeError('Unable to find field for RA, Dec {}, {}'.format(
+            aperRA, aperDec))
     return foundDir
 
 
@@ -87,12 +89,12 @@ def combine_adjacent_fields(fieldDict):
     @return: dictionary with same form, but adjacent fields combined
     """
     outDict = fieldDict.copy()
-    for f1Name, f1Coords in fieldDict.iteritems():
-        for f2Name, f2Coords in fieldDict.iteritems():
-            if (f1Name != f2Name and fields_are_same(f1Coords, f2Coords) and
-                    f1Name in outDict and f2Name in outDict):
-                outDict[f1Name] = outDict[f1Name] + f2Coords
-                del outDict[f2Name]
+    for (f1Name, f1Coords), (f2Name, f2Coords) in product(
+            fieldDict.iteritems(), fieldDict.iteritems()):
+        if (f1Name != f2Name and f1Name in outDict and f2Name in outDict and
+                fields_are_same(f1Coords, f2Coords)):
+            outDict[f1Name] = outDict[f1Name] + f2Coords
+            del outDict[f2Name]
     return outDict
 
 
@@ -102,12 +104,9 @@ def fields_are_same(coordList1, coordList2):
     @param coordList1: list of 2-tuples containing field pointing centers
     @param coordList2: Same as coordList1, for second field
     """
-    permutations = [(c1, c2) for c1 in coordList1 for c2 in coordList2]
-    for c1, c2 in permutations:    # c1, c2 are 2-tuple
-        sqrdist = sum((asarray(c1) - asarray(c2)) ** 2)
-        if sqrdist < FIELD_CONNECT_DISTANCE ** 2:
-            return True
-    return False
+    coordList1, coordList2 = asarray(coordList1), asarray(coordList2)
+    minSqrDist = cdist(coordList1, coordList2, metric='sqeuclidean').min()
+    return minSqrDist < FIELD_CONNECT_DISTANCE ** 2
 
 
 if __name__ == '__main__':
@@ -141,38 +140,39 @@ if __name__ == '__main__':
 
     # A dictionary of [short field name] : [(ra,dec)]
     message('Collecting field location information')
-    allFields = dict()
-    for flt_file in allFiles:
-        instrumentName = pyfits.getval(flt_file, 'INSTRUME', ext=0)
-        aperRA = pyfits.getval(flt_file, 'RA_APER', ext=1)
-        aperDec = pyfits.getval(flt_file, 'DEC_APER', ext=1)
+    allFieldLocs = dict()
+    allHeaders = dict()
+    for filenum, flt_file in enumerate(allFiles):
+        message('Reading fits headers',
+                percent=(100. * filenum) / len(allFiles))
+        header = dict(pyfits.getheader(flt_file, ext=0).items() +
+                      pyfits.getheader(flt_file, ext=1).items())
 
-        fieldName = construct_field_name(instrumentName, aperRA, aperDec)
-        allFields[fieldName] = allFields.get(fieldName,[]) + [(aperRA, aperDec)]
+        fieldName = construct_field_name(header['INSTRUME'],
+                                         header['RA_APER'],
+                                         header['DEC_APER'])
+        allHeaders[flt_file] = header
+        allFieldLocs[fieldName] = allFieldLocs.get(fieldName, []) + \
+            [(header['RA_APER'], header['DEC_APER'])]
 
     message('Calculating field adjacency')
     oldFields = {}
-    while set(allFields.keys()) != set(oldFields.keys()):
-        oldFields = allFields.copy()
-        allFields = combine_adjacent_fields(allFields)
+    while set(allFieldLocs.keys()) != set(oldFields.keys()):
+        message('Working', spinner=True)
+        oldFields = allFieldLocs.copy()
+        allFieldLocs = combine_adjacent_fields(allFieldLocs)
 
     for flt_file in filesToProcess:
-        primHeader = pyfits.getheader(flt_file, ext=0)
-
-        baseName = primHeader['ROOTNAME']
-        instName = primHeader['INSTRUME']
-        detector = primHeader['DETECTOR']
-        aperRA = pyfits.getval(flt_file, 'RA_APER', ext=1)
-        aperDec = pyfits.getval(flt_file, 'DEC_APER', ext=1)
+        header = allHeaders[flt_file]
 
         # Skip files that aren't WFC3
-        if instName != 'WFC3':
+        if header['INSTRUME'] != 'WFC3':
             message('File {} is not a WFC3 observation, skipping it.'.format(
                 flt_file), msgtype='WARN')
             continue
 
         # Skip files that don't contain science data
-        if primHeader['FILETYPE'] != 'SCI':
+        if header['FILETYPE'] != 'SCI':
             message('File {} '.format(flt_file) +
                     'is not a science file. Perhaps it is named incorrectly?',
                     msgtype='WARN')
@@ -180,9 +180,9 @@ if __name__ == '__main__':
 
         # Find the filter used for the file
         filt = ''
-        for key in ['FILTER', 'FILTER1', 'FILTER2']:
-            if primHeader.get(key, default='').startswith('F'):
-                filt = primHeader[key]
+        for key in ('FILTER', 'FILTER1', 'FILTER2'):
+            if header.get(key, default='').startswith('F'):
+                filt = header[key]
         # If file had no FILTER keyword whose value starts with F, something is
         # badly amiss
         if filt == '':
@@ -192,12 +192,13 @@ if __name__ == '__main__':
 
         # Search the field location dictionary to find out which field dir to
         # place this file in
-        fieldDir = find_field_dir(aperRA, aperDec, allFields)
-        obsDir = os.path.join('../', fieldDir)
-        filtDir = os.path.join(obsDir, filt)
+        fieldDir = find_field_dir(header['RA_APER'], header['DEC_APER'],
+                                  allFieldLocs)
+        obsDir = os.path.join('..', fieldDir)
+        filt_dir = os.path.join(obsDir, filt)
 
         # Check to make sure this observation has not been processed
-        if is_processed(filtDir, baseName) and not args['overwrite']:
+        if is_processed(filt_dir, flt_file) and not args['overwrite']:
             message('File {} '.format(flt_file) +
                     'has already been processed, skipping it. To force ' +
                     'reprocessing, run again with overwrite', msgtype='WARN')
@@ -208,12 +209,12 @@ if __name__ == '__main__':
         # Create directory tree for this observation set. Ignore errors that
         # complain of already existing dirs
         try:
-            os.makedirs(os.path.join(filtDir, 'do_not_touch'))
+            os.makedirs(os.path.join(filt_dir, 'do_not_touch'))
         except OSError:
-            message('Directory {} already exists.'.format(filtDir))
+            message('Directory {} already exists.'.format(filt_dir))
 
         # Copy the unprocessed file to the /do_not_touch/ dir
-        shutil.move(flt_file, os.path.join(filtDir, 'do_not_touch', flt_file))
+        shutil.move(flt_file, os.path.join(filt_dir, 'do_not_touch', flt_file))
 
     message('Processing complete. To run multidrizzle on all observations, ' +
             'run 02_hippies_drizzle_all.py')

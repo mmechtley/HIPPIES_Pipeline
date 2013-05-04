@@ -6,8 +6,8 @@ be changed in this file.
 # Prefix for field directories. Field RA/Dec are appended to this.
 FIELD_PREFIX = 'par'
 
-# In degrees, tolerance for connecting fields. Right now it's 90 arcsec, about
-# half the WFC3IR field of view. Don't make this too big, or the drizzling
+# In degrees, tolerance for connecting fields. Right now it's 100 arcsec, about
+# 2/3 the WFC3IR field of view. Don't make this too big, or the drizzling
 # process will have trouble matching catalogs.
 FIELD_CONNECT_DISTANCE = 100. / 3600.
 
@@ -73,5 +73,14 @@ IGNORE_DUPLICATE_COLUMNS = ['ALPHA_J2000', 'DELTA_J2000']
 
 
 # This function is used by all scripts to print messages to the terminal.
-def message(msg, msgtype='INFO'):
-    print('\n[{}] {}\n'.format(msgtype, msg))
+def message(msg, msgtype='INFO', spinner=False, percent=None):
+    import sys
+    import random
+    if percent is not None:
+        msg += ' {:3.0f}%\r'.format(float(percent))
+    if spinner:
+        msg += ' ' + '-/\|'[random.randint(0, 3)] + '\r'
+    if not msg.endswith('\r'):
+        msg += '\n\n'
+    sys.stdout.write('[{}] {}'.format(msgtype, msg))
+    sys.stdout.flush()
