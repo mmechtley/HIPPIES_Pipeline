@@ -59,6 +59,7 @@ PHOT_DETECT_FILTERS = ['F160W', 'F125W']
 # From: http://www.stsci.edu/hst/wfc3/phot_zp_lbn
 FILTER_ZEROPOINTS = {'F300X': 24.9565,
                      'F475X': 26.1579,
+                     'F475W': 25.6799,
                      'F600LP': 25.8746,
                      'F850LP': 23.8338,
                      'F606W': 26.0691,
