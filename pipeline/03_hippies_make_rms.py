@@ -232,6 +232,8 @@ if __name__ == '__main__':
         # First task is to symlink all drizzled sci and weight files into the
         # par_XXX_W dirs
         filters = linkDrizzledFilters(field)
+        if len(filters) < 1:
+            continue
 
         ## Find optimal regions to calculate RMS scaling from
         if not os.path.exists(os.path.join(field, RMS_REGION_NAME)):
