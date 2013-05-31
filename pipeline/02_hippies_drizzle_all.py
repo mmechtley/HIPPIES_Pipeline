@@ -97,6 +97,8 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
     ## Change to working dir
     os.chdir(filt_path)
 
+    out_file = os.path.join(os.getcwd(), out_file)
+
     flt_pattern = '*_flt.fits'
     flt_files = glob.glob('./do_not_touch/'+flt_pattern)
     instInfo = instrument_info(flt_files[0])
@@ -162,7 +164,7 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
     ## Return to original working dir
     os.chdir(old_dir)
 
-    return os.path.join(filt_path, sci_file)
+    return sci_file
 
 
 def calc_shift(refFile, otherFile):
@@ -184,8 +186,12 @@ def calc_shift(refFile, otherFile):
 
     message('Calculating shift for file {} using reference {}'.format(
         otherFile, refFile))
-    assert (os.path.exists(refFile) and os.path.exists(otherFile)
-            and os.path.exists(sex_conf))
+    for f in (refFile, otherFile, sex_conf):
+        if not os.path.exists(f):
+            raise OSError('Could not find file {}. '.format(f) +
+                          'While working in {}'.format(os.getcwd()) +
+                          'Unable to calculate shift.')
+
     ## Run sextractor for reference file
     if not os.path.exists(refCatFile):
         cmd = [SEX_COMMAND, refFile, '-c', sex_conf, '-weight_image',
@@ -322,8 +328,8 @@ def base_filename(filtPath):
     """
     Construct output base filename. Looks like parXXXX_W_FILT
     """
-    pathElems = os.path.split(os.path.abspath(filtPath))
-    return pathElems[-2] + '_' + pathElems[-1]
+    pathElems = os.path.abspath(filtPath).split(os.path.sep)
+    return pathElems[-2] + '_' + pathElems[-1] + '_drz.fits'
 
 
 def instrument_info(fileName):
