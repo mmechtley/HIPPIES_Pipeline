@@ -380,7 +380,9 @@ if __name__ == '__main__':
     ## Output sanity check
     if len(undrizzled) > 0:
         message('Sanity check: The following filters were not drizzled! ' +
-                'See Multidrizzle output for errors.', msgtype='WARN')
+                'Common reasons for this are Multidrizzle errors, no ' +
+                'reference filter image, or files left over from a ' +
+                'previous crash.', msgtype='WARN')
         message(', '.join(undrizzled), msgtype='WARN')
 
     message('Drizzling complete. To create RMS maps, run ' +
