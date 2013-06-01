@@ -372,8 +372,8 @@ if __name__ == '__main__':
         ## Sanity check: Make sure all filters were actually drizzled
         for filt in filter_list(field):
             filtPath = os.path.join(field, filt)
-            drizName = os.path.join(filtPath,
-                                    base_filename(filtPath) + '_drz_sci.fits')
+            sciName = base_filename(filtPath).replace('_drz', '_drz_sci')
+            drizName = os.path.join(filtPath, sciName)
             if not os.path.exists(drizName):
                 undrizzled += [filtPath]
 
