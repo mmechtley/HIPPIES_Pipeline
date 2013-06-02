@@ -25,9 +25,9 @@ import SextractorTools as SexTools
 
 # Additional Multidrizzle parameters for single-image drizzle step. Do not
 # modify these
-_driz_params_single = {'static': False, 'skysub': False, 'median': False,
-                       'blot': False, 'driz_cr': False, 'driz_combine': False,
-                       'clean': False}
+_driz_params_single = {'static': True, 'skysub': True, 'driz_separate': True,
+                       'median': False, 'blot': False, 'driz_cr': False,
+                       'driz_combine': False, 'clean': False}
 
 
 def drizzle_field(fieldPath, sys_args=None):
@@ -97,8 +97,6 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
     ## Change to working dir
     os.chdir(filt_path)
 
-    out_file = os.path.join(os.getcwd(), out_file)
-
     flt_pattern = '*_flt.fits'
     flt_files = glob.glob('./do_not_touch/'+flt_pattern)
     instInfo = instrument_info(flt_files[0])
@@ -159,7 +157,10 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
         md.build()
         md.run()
 
-    sci_file = out_file + '_drz_sci.fits'
+        keep_files += glob.glob(out_file.replace('_drz', '_drz*'))
+        clean_dir('.', exclude=keep_files)
+
+    sci_file = out_file.replace('_drz', '_drz_sci')
 
     ## Return to original working dir
     os.chdir(old_dir)

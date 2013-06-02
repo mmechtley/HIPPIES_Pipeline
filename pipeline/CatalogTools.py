@@ -33,7 +33,6 @@ def findOffsetMCMC(coords1, coords2, maxShift=(20,20,0), rotOrigin=(0,0),
 	## Set some default values for MCMC sampler, if not provided
 	kwargs.setdefault('iter',3500)
 	kwargs.setdefault('burn',2500)
-	kwargs.setdefault('tune_interval',25)
 	kwargs.setdefault('thin',5)
 
 	coords1Over, coords2Over = _overlappedCoords(coords1,coords2,maxShift)
@@ -97,7 +96,6 @@ def _offsetModel(kd1, kd2, maxShift, rotOrigin, precision):
 		d21, ind2near1 = kd2.query(c1Xform)
 
 		msk1 = ind1near2[ind2near1] == np.arange(ind2near1.size)
-#		msk1 &= d21 < np.percentile(d21, 90)
 
 		resid = c1Xform - kd2.data[ind2near1]
 		resid[~msk1] = 0
@@ -131,10 +129,9 @@ def _transformCoords(coords1, coords2, shift, rotOrigin=(0,0)):
 	c1Xform = coords1 - shift[0:2] - rotOrigin
 	c2Xform = coords2 - rotOrigin
 	if len(shift) > 2:
-		rotMat=_rotMatrix(shift[2],unit='degrees')
-		invRotMat = np.linalg.inv(rotMat)
-		c2Xform = np.dot(c2Xform,invRotMat) ## Right multiply, so use inv
-		c1Xform = np.dot(c1Xform,rotMat)
+		rotMat = _rotMatrix(shift[2], unit='degrees')
+		c2Xform = np.dot(c2Xform, rotMat.T) ## Right multiply, so use inv
+		c1Xform = np.dot(c1Xform, rotMat)
 	c1Xform += rotOrigin
 	c2Xform += shift[0:2] + rotOrigin
 	return c1Xform, c2Xform
