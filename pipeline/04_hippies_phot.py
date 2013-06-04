@@ -124,7 +124,7 @@ def combineSextractorCatalogs(field):
     message('Filter-specific columns found: {}'.format(', '.join(filtCols)))
     # Rename columns that were filter-specific for the original array
     firstFilt = filters[0]
-    firstCat.dtype.names = [name+firstFilt if name in filtCols else name
+    firstCat.dtype.names = [name+'_'+firstFilt if name in filtCols else name
                             for name in firstCat.dtype.names]
     masterFilename = field+'_master.cat'
     outData = StringIO('')
