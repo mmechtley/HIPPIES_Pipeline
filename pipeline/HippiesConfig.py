@@ -53,7 +53,7 @@ RMS_BAD_PX_VALUE = 10000
 # Photometry detection filters, i.e. detection image for dual-image mode
 # sextractor. Filters are checked in order, so if F160W is not found, F125W will
 # be tried, and so on.
-PHOT_DETECT_FILTERS = ['F160W', 'F125W']
+PHOT_DETECT_FILTERS = ['F125W', 'F160W']
 
 # Filter Photometric zeropoints, in AB magnitudes.
 # From: http://www.stsci.edu/hst/wfc3/phot_zp_lbn
