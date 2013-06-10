@@ -29,6 +29,12 @@ _driz_params_single = {'static': True, 'skysub': True, 'driz_separate': True,
                        'median': False, 'blot': False, 'driz_cr': False,
                        'driz_combine': False, 'clean': False}
 
+# Acceptable values for the EXPFLAG header keyword. Values other than NORMAL
+# indicate some badness with taking the exposure, such as guide star acquisition
+# failure. This should not normally be changed, so is placed here rather than
+# in HippiesConfig.
+_acceptable_expflags = ['NORMAL']
+
 
 def drizzle_field(fieldPath, sys_args=None):
     """
@@ -46,6 +52,9 @@ def drizzle_field(fieldPath, sys_args=None):
                 'has no suitable reference filter (F105W or F098M).',
                 msgtype='WARN')
         return
+    # Move ref filter to front
+    filts.remove(refFilt)
+    filts.insert(0, refFilt)
 
     # Drizzle the other filters to the same grid
     for filt in filts:
@@ -72,6 +81,11 @@ def drizzle_field(fieldPath, sys_args=None):
                 os.symlink(srcsci, destsci)
                 os.symlink(srcweight, destweight)
                 refFile = os.path.basename(destsci)
+                if any([not os.path.exists(destsci),
+                        not os.path.exists(destweight)]):
+                    message('Unable to find drizzled reference filter image. ' +
+                            'It may have no good exposures.', msgtype='WARN')
+                    continue
 
             drizzle_filt(filtPath, ref_file=refFile, sys_args=sys_args)
         else:
@@ -101,18 +115,26 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
     flt_files = glob.glob('./do_not_touch/'+flt_pattern)
     instInfo = instrument_info(flt_files[0])
 
+    # Remove any files that have unacceptable EXPFLAG set
+    good_files = [flt for flt in flt_files
+                  if pyfits.getval(flt, 'EXPFLAG') in _acceptable_expflags]
+    bad_files = set(flt_files).difference(set(good_files))
+    if len(bad_files) > 0:
+        message('Exposures in {} had non-NORMAL EXPFLAG. '.format(filt_path) +
+                'They will be excluded from drizzling.', msgtype='WARN')
+    flt_files = good_files
+
     ref_file = os.path.basename(ref_file)
 
     # Skip anything that's not WFC3
-    if instInfo['instrument'] == 'WFC3':
+    if instInfo['instrument'] == 'WFC3' and len(flt_files) > 0:
         # Copy files to working directory
         for src in flt_files:
             shutil.copy2(src, './')
-        flt_files = glob.glob(flt_pattern)
 
         # Run first drizzle pass, doing only driz_separate to get single_sci
         # files
-        driz_params_single = dict(DRIZ_PARAMS_WFC3.items() +
+        driz_params_single = dict(DRIZZLE_PARAMS_WFC3.items() +
                                   _driz_params_single.items())
         ## For slave filters (reference file is a drizzled file)
         if os.path.isfile(ref_file):
@@ -145,7 +167,7 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
         keep_files = glob.glob('*.cat') + ['shifts.txt', ref_file]
         clean_dir('.', exclude=keep_files)
         ## Re-copy FLTs
-        for src in glob.glob('./do_not_touch/' + flt_pattern):
+        for src in flt_files:
             shutil.copy2(src, './')
 
         ## Now redrizzle with shifts
@@ -153,7 +175,7 @@ def drizzle_filt(filt_path, ref_file='', sys_args=None):
                                        output=out_file,
                                        refimage=ref_file,
                                        shiftfile='shifts.txt',
-                                       **DRIZ_PARAMS_WFC3)
+                                       **DRIZZLE_PARAMS_WFC3)
         md.build()
         md.run()
 
@@ -227,6 +249,7 @@ def write_shift_file(ref_file, file_list, shift_list, file_name='shifts.txt'):
     files, and list of shifts. Shift file is written as delta shift file in
     pixel coordinates. Rotation is assumed 0 and scale assumed 1
     """
+    file_list = [os.path.basename(flt) for flt in file_list]
     ## Write out shift file for multidrizzle
     with open(file_name, 'w') as sf:
         sf.writelines(['# frame: output\n',
@@ -249,6 +272,8 @@ def trim_files(field):
     @param field: directory to act upon
     """
     sciFiles = glob.glob('{0}/F*/{0}*_drz_sci.fits'.format(field))
+    if len(sciFiles) == 0:
+        return
     outX = min([pyfits.getval(sciFile, 'NAXIS1') for sciFile in sciFiles])
     outY = min([pyfits.getval(sciFile, 'NAXIS2') for sciFile in sciFiles])
     trimSlice = (slice(0, outY), slice(0, outX))

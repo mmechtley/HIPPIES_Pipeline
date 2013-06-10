@@ -12,11 +12,11 @@ FIELD_PREFIX = 'par'
 FIELD_CONNECT_DISTANCE = 100. / 3600.
 
 # Multidrizzle parameters for final image combination
-DRIZ_PARAMS_WFC3 = {'driz_sep_scale': 0.1, 'driz_sep_rot': 0.0,
-                    'driz_final_scale': 0.1, 'driz_final_rot': 0.0,
-                    'driz_final_pixfrac': 0.8, 'driz_final_wht_type': 'EXP',
-                    'driz_final_kernel': 'square',
-                    'build': False, 'clean': True}
+DRIZZLE_PARAMS_WFC3 = {'driz_sep_scale': 0.1, 'driz_sep_rot': 0.0,
+                       'driz_final_scale': 0.1, 'driz_final_rot': 0.0,
+                       'driz_final_pixfrac': 0.8, 'driz_final_wht_type': 'EXP',
+                       'driz_final_kernel': 'square',
+                       'build': False, 'clean': True}
 
 # List of drizzle reference filters, in order of preference. Every field should
 # have one of these filters, and deepest IR filters should be first. Filters are
